@@ -49,11 +49,11 @@ dependencies = [
     "rich>=12.0.0",
     "pyparsing>=2.4.7",
     "typing-extensions>=3.7.4",
-    "scmrepo==0.1.9",
+    "scmrepo==0.1.10",
     "dvc-render>=0.1.2",
     "dvc-task==0.1.11",
     "dvclive>=1.2.2",
-    "dvc-data==0.40.1",
+    "dvc-data==0.40.3",
     "dvc-http",
     "hydra-core>=1.1.0",
     "iterative-telemetry==0.0.7",
@@ -100,7 +100,7 @@ tests = [
     "filelock==3.9.0",
     "beautifulsoup4==4.11.2",
     "pywin32>=225; sys_platform == 'win32'",  # optional dependency
-    "pylint==2.16.1",
+    "pylint==2.16.2",
     # type-checking
     "mypy==0.991",
     "types-requests",
@@ -109,7 +109,7 @@ tests = [
     "types-appdirs",
     "types-colorama",
     "types-psutil",
-    "types-tqdm",
+    "types-tqdm<4.64.7.13",
 ]
 all = ["dvc[azure,gdrive,gs,hdfs,oss,s3,ssh,webdav,webhdfs]"]
 dev = ["dvc[azure,gdrive,gs,hdfs,oss,s3,ssh,webdav,webhdfs,tests]"]

@@ -153,10 +153,11 @@ def _load_storage_from_out(storage_map, key, out):
                     key=key,
                     fs=remote.fs,
                     path=remote.fs.path.join(remote.path, *key),
+                    index=remote.index,
                 )
             )
         else:
-            storage_map.add_remote(ObjectStorage(key, remote.odb))
+            storage_map.add_remote(ObjectStorage(key, remote.odb, index=remote.index))
     except NoRemoteError:
         pass
 
@@ -589,6 +590,10 @@ def build_data_index(
     from dvc_data.index.build import build_entries, build_entry
     from dvc_data.index.save import build_tree
 
+    ignore = None
+    if workspace == "repo" and isinstance(fs, LocalFileSystem):
+        ignore = index.repo.dvcignore
+
     data = DataIndex()
     for key in index.data_keys.get(workspace, set()):
         out_path = fs.path.join(path, *key)
@@ -610,7 +615,11 @@ def build_data_index(
             continue
 
         for entry in build_entries(
-            out_path, fs, compute_hash=compute_hash, state=index.repo.state
+            out_path,
+            fs,
+            compute_hash=compute_hash,
+            state=index.repo.state,
+            ignore=ignore,
         ):
             if not entry.key or entry.key == ("",):
                 # NOTE: whether the root will be returned by build_entries
