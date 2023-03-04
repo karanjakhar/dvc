@@ -2,6 +2,8 @@ import logging
 import os
 from typing import TYPE_CHECKING, List, Optional
 
+from pathspec import PathSpec
+
 from dvc.scm import Git
 
 from .exceptions import ExperimentExistsError
@@ -22,7 +24,7 @@ def _save_experiment(
     name: Optional[str],
     include_untracked: Optional[List[str]],
 ) -> str:
-    repo.commit([], force=True)
+    repo.commit([], force=True, relink=False)
 
     name = name or get_random_exp_name(repo.scm, baseline_rev)
     ref_info = ExpRefInfo(baseline_rev, name)
@@ -59,7 +61,8 @@ def save(
 
     _, _, untracked = repo.scm.status()
     if include_untracked:
-        untracked = [file for file in untracked if file not in include_untracked]
+        spec = PathSpec.from_lines("gitwildmatch", include_untracked)
+        untracked = [file for file in untracked if not spec.match_file(file)]
     if untracked:
         logger.warning(
             (

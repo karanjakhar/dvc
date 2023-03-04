@@ -189,7 +189,7 @@ def _cached_clone(url, rev, for_write=False):
 
 
 @wrap_with(threading.Lock())
-def _clone_default_branch(url, rev, for_write=False):  # noqa: C901
+def _clone_default_branch(url, rev, for_write=False):  # noqa: C901, PLR0912
     """Get or create a clean clone of the url.
 
     The cloned is reactualized with git pull unless rev is a known sha.
@@ -253,7 +253,7 @@ def _pull(git: "Git", unshallow: bool = False):
 
     git.fetch(unshallow=unshallow)
     _merge_upstream(git)
-    fetch_all_exps(git, "origin", backends=["dulwich"])
+    fetch_all_exps(git, "origin")
 
 
 def _merge_upstream(git: "Git"):

@@ -337,7 +337,7 @@ class Index:
 
     @cached_property
     def data_tree(self):
-        from dvc_data.hashfile import Tree
+        from dvc_data.hashfile.tree import Tree
 
         tree = Tree()
         for out in self.outs:
@@ -363,8 +363,8 @@ class Index:
         if index is None:
             index = DataIndex()
 
-        prefix = (self.data_tree.hash_info.value,)
-        if prefix in index.ls((), detail=False):
+        prefix = ("tree", self.data_tree.hash_info.value)
+        if index.has_node(prefix):
             loaded = True
 
         try:

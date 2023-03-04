@@ -20,7 +20,6 @@ from scmrepo.noscm import NoSCM
 
 from dvc.exceptions import DvcException
 from dvc.progress import Tqdm
-from dvc.utils import format_link
 
 if TYPE_CHECKING:
     from scmrepo.progress import GitProgressEvent
@@ -56,25 +55,6 @@ class GitAuthError(SCMError):
     def __init__(self, reason: str) -> None:
         doc = "See https://dvc.org/doc/user-guide/troubleshooting#git-auth"
         super().__init__(f"{reason}\n{doc}")
-
-
-class GitMergeError(SCMError):
-    def __init__(self, msg: str, scm: Optional["Git"] = None) -> None:
-        if scm and self._is_shallow(scm):
-            url = format_link(
-                "https://dvc.org/doc/user-guide/troubleshooting#git-shallow"
-            )
-            msg = (
-                f"{msg}: `dvc exp` does not work in shallow Git repos. "
-                f"See {url} for more information."
-            )
-        super().__init__(msg)
-
-    @staticmethod
-    def _is_shallow(scm: "Git") -> bool:
-        if os.path.exists(os.path.join(scm.root_dir, Git.GIT_DIR, "shallow")):
-            return True
-        return False
 
 
 @contextmanager
@@ -179,7 +159,7 @@ def clone(url: str, to_path: str, **kwargs):
         try:
             git = Git.clone(url, to_path, progress=pbar.update_git, **kwargs)
             if "shallow_branch" not in kwargs:
-                fetch_all_exps(git, url, progress=pbar.update_git, backends=["dulwich"])
+                fetch_all_exps(git, url, progress=pbar.update_git)
             return git
         except InternalCloneError as exc:
             raise CloneError("SCM error") from exc
@@ -227,7 +207,7 @@ def _get_n_commits(scm: "Git", revs: List[str], num: int) -> List[str]:
     return results
 
 
-def iter_revs(  # noqa: C901
+def iter_revs(
     scm: "Git",
     revs: Optional[List[str]] = None,
     num: int = 1,

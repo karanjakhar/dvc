@@ -289,7 +289,7 @@ class _DVCFileSystem(AbstractFileSystem):  # pylint:disable=abstract-method
                 ):
                     fs_infos[fs.path.name(info["name"])] = info
             except (FileNotFoundError, NotADirectoryError):
-                pass  # noqa: S110
+                pass
 
         dvcfiles = kwargs.get("dvcfiles", False)
 
@@ -316,7 +316,9 @@ class _DVCFileSystem(AbstractFileSystem):  # pylint:disable=abstract-method
         ignore_subrepos = kwargs.get("ignore_subrepos", True)
         return self._info(key, path, ignore_subrepos=ignore_subrepos)
 
-    def _info(self, key, path, ignore_subrepos=True, check_ignored=True):  # noqa: C901
+    def _info(  # noqa: C901, PLR0912
+        self, key, path, ignore_subrepos=True, check_ignored=True
+    ):
         repo, dvc_fs, subkey = self._get_subrepo_info(key)
 
         dvc_info = None
@@ -358,6 +360,19 @@ class _DVCFileSystem(AbstractFileSystem):  # pylint:disable=abstract-method
         info = _merge_info(repo, fs_info, dvc_info)
         info["name"] = path
         return info
+
+    def get_file(self, rpath, lpath, **kwargs):  # pylint: disable=arguments-differ
+        key = self._get_key_from_relative(rpath)
+        fs_path = self._from_key(key)
+        try:
+            return self.repo.fs.get_file(fs_path, lpath, **kwargs)
+        except FileNotFoundError:
+            _, dvc_fs, subkey = self._get_subrepo_info(key)
+            if not dvc_fs:
+                raise
+
+        dvc_path = _get_dvc_path(dvc_fs, subkey)
+        return dvc_fs.get_file(dvc_path, lpath, **kwargs)
 
 
 class DVCFileSystem(FileSystem):

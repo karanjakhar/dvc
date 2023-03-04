@@ -8,6 +8,7 @@ import pytest
 from dvc.cli import DvcParserError, parse_args
 from dvc.commands.experiments.apply import CmdExperimentsApply
 from dvc.commands.experiments.branch import CmdExperimentsBranch
+from dvc.commands.experiments.clean import CmdExperimentsClean
 from dvc.commands.experiments.diff import CmdExperimentsDiff
 from dvc.commands.experiments.gc import CmdExperimentsGC
 from dvc.commands.experiments.init import CmdExperimentsInit
@@ -27,7 +28,7 @@ from .test_repro import common_arguments as repro_arguments
 
 
 def test_experiments_apply(dvc, scm, mocker):
-    cli_args = parse_args(["experiments", "apply", "--no-force", "exp_rev"])
+    cli_args = parse_args(["experiments", "apply", "exp_rev"])
     assert cli_args.func == CmdExperimentsApply
 
     cmd = cli_args.func(cli_args)
@@ -35,7 +36,7 @@ def test_experiments_apply(dvc, scm, mocker):
 
     assert cmd.run() == 0
 
-    m.assert_called_once_with(cmd.repo, "exp_rev", force=False)
+    m.assert_called_once_with(cmd.repo, "exp_rev")
 
 
 def test_experiments_diff(dvc, scm, mocker):
@@ -100,6 +101,7 @@ def test_experiments_show(dvc, scm, mocker):
             "1",
             "--rev",
             "foo",
+            "--force",
         ]
     )
     assert cli_args.func == CmdExperimentsShow
@@ -121,6 +123,7 @@ def test_experiments_show(dvc, scm, mocker):
         sha_only=True,
         param_deps=True,
         fetch_running=True,
+        force=True,
     )
 
 
@@ -924,3 +927,15 @@ def test_experiments_save(dvc, scm, mocker):
     m.assert_called_once_with(
         cmd.repo, name="exp-name", force=True, include_untracked=[]
     )
+
+
+def test_experiments_clean(dvc, scm, mocker):
+    cli_args = parse_args(["experiments", "clean"])
+    assert cli_args.func == CmdExperimentsClean
+
+    cmd = cli_args.func(cli_args)
+    m = mocker.patch("dvc.repo.experiments.clean.clean", return_value={})
+
+    assert cmd.run() == 0
+
+    m.assert_called_once_with(cmd.repo)

@@ -187,7 +187,7 @@ class FileMixin:
 
 class SingleStageFile(FileMixin):
     from dvc.schema import COMPILED_SINGLE_STAGE_SCHEMA as SCHEMA
-    from dvc.stage.loader import SingleStageLoader as LOADER
+    from dvc.stage.loader import SingleStageLoader as LOADER  # noqa: N814
 
     metrics: List[str] = []
     plots: Any = {}
@@ -231,7 +231,7 @@ class ProjectFile(FileMixin):
     """Abstraction for pipelines file, .yaml + .lock combined."""
 
     from dvc.schema import COMPILED_MULTI_STAGE_SCHEMA as SCHEMA
-    from dvc.stage.loader import StageLoader as LOADER
+    from dvc.stage.loader import StageLoader as LOADER  # noqa: N814
 
     @property
     def _lockfile(self):
@@ -409,11 +409,10 @@ class Lockfile(FileMixin):
             if version == LOCKFILE_VERSION.V1:
                 logger.info("Migrating lock file '%s' from v1 to v2", self.relpath)
                 migrate_lock_v1_to_v2(data, self.latest_version_info)
-            else:
-                if not data:
-                    data.update(self.latest_version_info)
-                    # order is important, meta should always be at the top
-                    logger.info("Generating lock file '%s'", self.relpath)
+            elif not data:
+                data.update(self.latest_version_info)
+                # order is important, meta should always be at the top
+                logger.info("Generating lock file '%s'", self.relpath)
 
             data["stages"] = data.get("stages", {})
             modified = data["stages"].get(stage.name, {}) != stage_data.get(

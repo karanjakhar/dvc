@@ -140,7 +140,7 @@ class Stage(params.StageParams):
     # pylint:disable=no-value-for-parameter
     # rwlocked() confuses pylint
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         repo,
         path=None,
@@ -545,13 +545,13 @@ class Stage(params.StageParams):
         )
 
     @rwlocked(write=["outs"])
-    def commit(self, allow_missing=False, filter_info=None) -> None:
+    def commit(self, allow_missing=False, filter_info=None, **kwargs) -> None:
         from dvc.output import OutputDoesNotExistError
 
         link_failures = []
         for out in self.filter_outs(filter_info):
             try:
-                out.commit(filter_info=filter_info)
+                out.commit(filter_info=filter_info, **kwargs)
             except OutputDoesNotExistError:
                 if not (allow_missing or out.checkpoint):
                     raise

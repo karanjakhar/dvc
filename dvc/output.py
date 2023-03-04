@@ -3,7 +3,7 @@ import os
 import posixpath
 from collections import defaultdict
 from operator import itemgetter
-from typing import TYPE_CHECKING, Dict, List, Optional, Set, Tuple, Type, cast
+from typing import TYPE_CHECKING, Dict, List, Optional, Set, Tuple, Type
 from urllib.parse import urlparse
 
 from funcy import collecting, first, project
@@ -20,7 +20,6 @@ from dvc.exceptions import (
     RemoteCacheRequiredError,
 )
 from dvc.utils.objects import cached_property
-from dvc_data.hashfile import Tree
 from dvc_data.hashfile import check as ocheck
 from dvc_data.hashfile import load as oload
 from dvc_data.hashfile.build import build
@@ -29,6 +28,7 @@ from dvc_data.hashfile.hash_info import HashInfo
 from dvc_data.hashfile.istextfile import istextfile
 from dvc_data.hashfile.meta import Meta
 from dvc_data.hashfile.transfer import transfer as otransfer
+from dvc_data.hashfile.tree import Tree
 from dvc_objects.errors import ObjectFormatError
 
 from .annotations import ANNOTATION_FIELDS, ANNOTATION_SCHEMA, Annotation
@@ -312,7 +312,7 @@ class Output:
     IsStageFileError: Type[DvcException] = OutputIsStageFileError
     IsIgnoredError: Type[DvcException] = OutputIsIgnoredError
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         stage,
         path,
@@ -709,7 +709,7 @@ class Output:
         except _CheckoutError as exc:
             raise CheckoutError(exc.paths, {})  # noqa: B904
 
-    def commit(self, filter_info=None) -> None:
+    def commit(self, filter_info=None, relink=True) -> None:
         if not self.exists:
             raise self.DoesNotExistError(self)
 
@@ -719,8 +719,11 @@ class Output:
             granular = (
                 self.is_dir_checksum and filter_info and filter_info != self.fs_path
             )
+            # NOTE: trying to use hardlink during transfer only if we will be
+            # relinking later
+            hardlink = relink
             if granular:
-                obj = self._commit_granular_dir(filter_info)
+                obj = self._commit_granular_dir(filter_info, hardlink)
             else:
                 staging, _, obj = build(
                     self.cache,
@@ -734,41 +737,43 @@ class Output:
                     self.cache,
                     {obj.hash_info},
                     shallow=False,
-                    hardlink=True,
+                    hardlink=hardlink,
                 )
-            self._checkout(
-                filter_info or self.fs_path,
-                self.fs,
-                obj,
-                self.cache,
-                relink=True,
-                state=self.repo.state,
-                prompt=prompt.confirm,
-            )
-            self.set_exec()
+            if relink:
+                self._checkout(
+                    filter_info or self.fs_path,
+                    self.fs,
+                    obj,
+                    self.cache,
+                    relink=True,
+                    state=self.repo.state,
+                    prompt=prompt.confirm,
+                )
+                self.set_exec()
 
-    def _commit_granular_dir(self, filter_info) -> Optional["HashFile"]:
+    def _commit_granular_dir(self, filter_info, hardlink) -> Optional["HashFile"]:
         prefix = self.fs.path.parts(self.fs.path.relpath(filter_info, self.fs_path))
-        staging, _, save_obj = build(
+        staging, _, obj = build(
             self.cache,
             self.fs_path,
             self.fs,
             self.hash_name,
             ignore=self.dvcignore,
         )
-        save_obj = cast(Tree, save_obj)
-        save_obj = cast(Tree, save_obj.filter(prefix))
+        assert isinstance(obj, Tree)
+        save_obj = obj.filter(prefix)
+        assert isinstance(save_obj, Tree)
         checkout_obj = save_obj.get_obj(self.cache, prefix)
         otransfer(
             staging,
             self.cache,
             {save_obj.hash_info} | {oid for _, _, oid in save_obj},
             shallow=True,
-            hardlink=True,
+            hardlink=hardlink,
         )
         return checkout_obj
 
-    def dumpd(self, **kwargs):  # noqa: C901
+    def dumpd(self, **kwargs):  # noqa: C901, PLR0912
         ret: Dict[str, Any] = {}
         with_files = (
             (not self.IS_DEPENDENCY or self.stage.is_import)
@@ -822,7 +827,7 @@ class Output:
         if with_files:
             obj = self.obj or self.get_obj()
             if obj:
-                obj = cast("Tree", obj)
+                assert isinstance(obj, Tree)
                 ret[self.PARAM_FILES] = [
                     split_file_meta_from_cloud(f)
                     for f in _serialize_tree_obj_to_files(obj)
@@ -870,7 +875,7 @@ class Output:
         fs_path = self.fs.path
         if filter_info and filter_info != self.fs_path:
             prefix = fs_path.relparts(filter_info, self.fs_path)
-            obj = cast(Tree, obj)
+            assert isinstance(obj, Tree)
             obj = obj.get_obj(self.cache, prefix)
 
         return obj
@@ -1052,14 +1057,14 @@ class Output:
             return None
 
         obj = self.get_obj()
+        assert obj is None or isinstance(obj, Tree)
         if filter_info and filter_info != self.fs_path:
             assert obj
             prefix = self.fs.path.parts(self.fs.path.relpath(filter_info, self.fs_path))
-            obj = cast(Tree, obj)
             return obj.filter(prefix)
-        return cast(Tree, obj)
+        return obj
 
-    def get_used_objs(  # noqa: C901
+    def get_used_objs(  # noqa: C901, PLR0911
         self, **kwargs
     ) -> Dict[Optional["ObjectDB"], Set["HashInfo"]]:
         """Return filtered set of used object IDs for this out."""

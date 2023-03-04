@@ -30,7 +30,7 @@ def supported_cache_type(types):
     return types
 
 
-def Choices(*choices):
+def Choices(*choices):  # noqa: N802
     """Checks that value belongs to the specified set of values
 
     Args:
@@ -40,7 +40,7 @@ def Choices(*choices):
     return Any(*choices, msg="expected one of {}".format(", ".join(choices)))
 
 
-def ByUrl(mapping):
+def ByUrl(mapping):  # noqa: N802
     schemas = walk_values(Schema, mapping)
 
     def validate(data):
@@ -264,8 +264,8 @@ SCHEMA = {
     # section for experimental features
     "feature": {
         Optional("machine", default=False): Bool,
-        Optional("data_index_cache", default=False): Bool,
         # enabled by default. It's of no use, kept for backward compatibility.
+        Optional("data_index_cache", default=False): Bool,
         Optional("parametrization", default=True): Bool,
     },
     "plots": {

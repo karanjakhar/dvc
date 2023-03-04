@@ -1,3 +1,5 @@
+import os
+
 from dvc.fs import GitFileSystem, Schemes
 from dvc_data.hashfile.db import get_odb
 
@@ -28,16 +30,21 @@ class CacheManager:
         self.config = config = repo.config["cache"]
         self._odb = {}
 
+        default = None
+        if repo and repo.local_dvc_dir:
+            default = os.path.join(repo.local_dvc_dir, self.CACHE_DIR)
+
         local = config.get("local")
 
         if local:
             settings = {"name": local}
-        elif "dir" not in config:
+        elif "dir" not in config and not default:
             settings = None
         else:
             from dvc.config_schema import LOCAL_COMMON
 
-            settings = {"url": config["dir"]}
+            url = config.get("dir") or default
+            settings = {"url": url}
             for opt in LOCAL_COMMON:
                 if opt in config:
                     settings[str(opt)] = config.get(opt)
