@@ -119,12 +119,6 @@ def fetch_worktree(
     ):
         remote_obj = _get_remote(repo, remote_name, remote, "fetch")
         index = view.data["repo"]
-        for key in index.storage_map:
-            storage = index.storage_map[key]
-            storage.fs = remote_obj.fs
-            storage.path = remote_obj.fs.path.join(remote_obj.path, *key)
-            index.storage_map[key] = storage
-
         total = len(index)
         with Callback.as_tqdm_callback(
             unit="file",
@@ -132,7 +126,7 @@ def fetch_worktree(
             disable=total == 0,
         ) as cb:
             cb.set_size(total)
-            transferred += save(index, callback=cb, jobs=jobs)
+            transferred += save(index, callback=cb, jobs=jobs, storage="remote")
     return transferred
 
 
@@ -195,6 +189,11 @@ def push_worktree(
                 raise DvcException(
                     f"remote {remote_obj.name!r} does not support versioning"
                 ) from None
+
+        if remote_obj.index is not None:
+            for key, entry in new_index.iteritems():
+                remote_obj.index[key] = entry
+            remote_obj.index.commit()
 
         for out in view.outs:
             workspace, _key = out.index_key
@@ -357,6 +356,7 @@ def _fetch_out_changes(
             update_meta=False,
             meta_only=True,
             meta_cmp_key=partial(_meta_checksum, remote.fs),
+            storage="data",
             callback=cb,
         )
         out.save()

@@ -13,17 +13,20 @@ from typing import (
     Union,
 )
 
+from dvc.ui import ui
+
 if TYPE_CHECKING:
     from dvc.repo import Repo
     from dvc.scm import Git, NoSCM
     from dvc_data.index import DataIndex
+    from dvc_data.index.diff import Change
 
 
 def posixpath_to_os_path(path: str) -> str:
     return path.replace(posixpath.sep, os.path.sep)
 
 
-def _adapt_typ(typ):
+def _adapt_typ(typ: str) -> str:
     from dvc_data.index.diff import ADD, DELETE, MODIFY
 
     if typ == MODIFY:
@@ -38,7 +41,7 @@ def _adapt_typ(typ):
     return typ
 
 
-def _adapt_path(change):
+def _adapt_path(change: "Change") -> str:
     isdir = False
     if change.new and change.new.meta:
         isdir = change.new.meta.isdir
@@ -54,8 +57,8 @@ def _diff(
     old: "DataIndex",
     new: "DataIndex",
     *,
-    granular: Optional[bool] = False,
-    with_missing: Optional[bool] = False,
+    granular: bool = False,
+    with_missing: bool = False,
 ) -> Dict[str, List[str]]:
     from dvc_data.index.diff import UNCHANGED, UNKNOWN, diff
 
@@ -94,7 +97,7 @@ def _diff(
             with_missing
             and change.old
             and change.old.hash_info
-            and not old.storage_map[change.key].cache.exists(change.old.hash_info.value)
+            and not old.storage_map.cache_exists(change.old)
         ):
             # NOTE: emulating previous behaviour
             _add_change("not_in_cache", change)
@@ -143,14 +146,18 @@ def _git_info(scm: Union["Git", "NoSCM"], untracked_files: str = "all") -> GitIn
 def _diff_index_to_wtree(repo: "Repo", **kwargs: Any) -> Dict[str, List[str]]:
     from .index import build_data_index
 
-    workspace = build_data_index(repo.index, repo.root_dir, repo.fs, compute_hash=True)
+    with ui.status("Building workspace index"):
+        workspace = build_data_index(
+            repo.index, repo.root_dir, repo.fs, compute_hash=True
+        )
 
-    return _diff(
-        repo.index.data["repo"],
-        workspace,
-        with_missing=True,
-        **kwargs,
-    )
+    with ui.status("Calculating diff between index/workspace"):
+        return _diff(
+            repo.index.data["repo"],
+            workspace,
+            with_missing=True,
+            **kwargs,
+        )
 
 
 def _diff_head_to_index(
@@ -164,7 +171,8 @@ def _diff_head_to_index(
 
         head_index = repo.index.data["repo"]
 
-    return _diff(head_index, index, **kwargs)
+    with ui.status("Calculating diff between head/index"):
+        return _diff(head_index, index, **kwargs)
 
 
 class Status(TypedDict):
